@@ -66,8 +66,6 @@ TLS_KEY buf_key;
 BOOL EnableInstrumentation = TRUE;
 
 FILE *traceFile;
-FILE *ipInfoFile;
-FILE *ipStatsFile;
 
 static splay_tree  tree = splay_tree_new((splay_tree_compare_fn) splay_tree_compare_ints,
                                    0,0);
@@ -436,13 +434,6 @@ VOID Fini(INT32 code, VOID *v)
 {
     PIN_GetLock(&fileLock, 1);
     fclose(traceFile);
-    fclose(ipInfoFile);
-    ipStatsFile =fopen("stats.out","w");
-
-    for(auto &i: ip_map)
-       fprintf(ipStatsFile, "%lu %d\n", i.first, i.second);   
-    fflush(ipStatsFile);
-    fclose(ipStatsFile);
     PIN_ReleaseLock(&fileLock);
 }
 
@@ -452,7 +443,6 @@ int main(int argc, char *argv[])
     PIN_Init(argc, argv);
 
     traceFile = fopen("memtrace.out", "w");
-    ipInfoFile = fopen("info.out", "w");
 
     PIN_InterceptSignal(SIGUSR1, SignalHandler1, 0);
     PIN_UnblockSignal(SIGUSR1, TRUE);
