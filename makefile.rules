@@ -1,0 +1,15 @@
+TEST_TOOL_ROOTS := mat
+
+#TOOL_LIBS +=obj-intel64/splay-tree.o
+TOOL_CXXFLAGS += -std=c++11 -g -Wno-error=format-contains-nul -Wno-format-contains-nul -Wno-write-strings -I./Splay-Tree
+TOOL_CXXFLAGS_NOOPT=1
+DEBUG = 1
+
+$(OBJDIR)splay-tree$(OBJ_SUFFIX): Splay-Tree/splay-tree.c Splay-Tree/splay-tree.h 
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
+
+$(OBJDIR)mat$(OBJ_SUFFIX): mat.cpp
+	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
+
+$(OBJDIR)mat$(PINTOOL_SUFFIX): $(OBJDIR)splay-tree$(OBJ_SUFFIX) $(OBJDIR)mat$(OBJ_SUFFIX) Splay-Tree/splay-tree.h
+	$(LINKER) $(TOOL_LDFLAGS_NOOPT) $(LINK_EXE)$@ $(^:%.h=) $(TOOL_LPATHS) $(TOOL_LIBS)
