@@ -9,6 +9,6 @@ How to install:
    - call make.
    
 How to execute the Pin Tool:
-    pin -t obj-intel64/mt.so -- $YourBinary
-	
-
+```
+pin -t obj-intel64/mat.so -- $YourBinary 
+```
