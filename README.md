@@ -4,4 +4,11 @@ The aim of this PIN tool is to track memory accesses and to compute the offsets 
    - Instrumenting only routines of interests (currently main-function)
 	
 How to install:
-	Download and install PIN and set PIN_ROOT to the Pin directory. Then call make.
+   - Download and install PIN
+   - set PIN_ROOT to the Pin directory
+   - call make.
+   
+How to execute the Pin Tool:
+    pin -t obj-intel64/mt.so -- $YourBinary
+	
+
