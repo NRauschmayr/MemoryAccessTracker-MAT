@@ -241,11 +241,12 @@ splay_tree_node splay_tree_insert (splay_tree sp, splay_tree_key key, splay_tree
   if (sp->root)
     comparison = (*sp->comp)(sp->root, key); 
   if (sp->root && comparison == 0)
-     {  
-    /*if (sp->delete_value)
-     	(*sp->delete_value)(sp->root->value);
-          sp->root->value = value;*/
-    } 
+  {  
+    if (sp->delete_value)
+    	(*sp->delete_value)(sp->root->value);
+     sp->root->value = value;
+     sp->root->key = key;
+   } 
   else 
     {
       splay_tree_node node;

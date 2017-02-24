@@ -66,6 +66,7 @@ TLS_KEY buf_key;
 BOOL EnableInstrumentation = TRUE;
 
 FILE *traceFile;
+FILE *ipFile;
 
 static splay_tree  tree = splay_tree_new((splay_tree_compare_fn) splay_tree_compare_ints,
                                    0,0);
@@ -94,13 +95,21 @@ static std::map<ADDRINT, std::string> string_of_instructions;
 VOID Record(ADDRINT ip, ADDRINT ea, UINT32 size, BOOL type)
 {
    //Get sourceline of the corresponding ip
-/* std::string filename;
-   INT32 line = 0;
-   PIN_LockClient();
-   PIN_GetSourceLocation(ip, NULL, &line, &filename);
-   PIN_UnlockClient();
-   std::stringstream ss;
-   ss << filename << ":" << line; */
+   auto it = ip_map.insert(std::make_pair(ip,1));
+   if (it.second){
+       //string_of_instructions[addr] = INS_Disassemble(addr);
+       std::map<ADDRINT,std::string>::const_iterator it = sourcelines.find(ip);
+
+      //Get sourceline of the corresponding ip
+      std::string filename;
+      INT32 line = 0;
+      PIN_LockClient();
+      PIN_GetSourceLocation(ip, NULL, &line, &filename);
+      PIN_UnlockClient();
+      std::stringstream ss;
+      ss << filename << ":" << line;
+      sourcelines[ip] = ss.str();
+   }
 
    splay_tree_node n = splay_tree_lookup(tree, ea);
    uint64_t tmp = -1;
@@ -432,9 +441,18 @@ VOID InstrumentMalloc(IMG img, VOID * v ){
 //Write out some statistics at the finalization step
 VOID Fini(INT32 code, VOID *v)
 {
-    PIN_GetLock(&fileLock, 1);
-    fclose(traceFile);
-    PIN_ReleaseLock(&fileLock);
+   PIN_GetLock(&fileLock, 1);
+
+   ipFile =fopen("sourcelines.txt","w");
+
+   for(auto it: sourcelines)
+       fprintf(ipFile, "%lu %s\n", it.first, it.second.c_str());
+   fflush(ipFile);
+   fclose(ipFile);
+   PIN_ReleaseLock(&fileLock);
+
+   fclose(traceFile);
+   PIN_ReleaseLock(&fileLock);
 }
 
 
@@ -442,7 +460,7 @@ int main(int argc, char *argv[])
 {
     PIN_Init(argc, argv);
 
-    traceFile = fopen("memtrace.out", "w");
+    traceFile = fopen("memtrace.txt", "w");
 
     PIN_InterceptSignal(SIGUSR1, SignalHandler1, 0);
     PIN_UnblockSignal(SIGUSR1, TRUE);
