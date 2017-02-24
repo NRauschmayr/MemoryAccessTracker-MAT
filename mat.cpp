@@ -116,10 +116,10 @@ VOID Record(ADDRINT ip, ADDRINT ea, UINT32 size, BOOL type)
 
    if( n != 0){
      tmp = ea - n->key;
-     fprintf(traceFile, "%lu %lu %lu %lu\n", (long unsigned) ip, (long unsigned) ea, tmp, n->key);
+     fprintf(traceFile, "%lu %lu %lu %lu %d\n", (long unsigned) ip, (long unsigned) ea, tmp, n->key, type);
     } 
    else //if we cannot find the corresponding allocation to which the memory access belongs
-      fprintf(traceFile, "%lu %lu -1 -1 \n", (long unsigned) ip, (long unsigned) ea);
+      fprintf(traceFile, "%lu %lu -1 -1 %d\n", (long unsigned) ip, (long unsigned) ea, type);
 }
 
 //Instrument Load and Stores and obtain information about
