@@ -48,6 +48,8 @@ class Graph(object):
 	  sourceline = sourcelines[a[i,2]]
        except:
           pass
+       # We hash on sourceline not IP. Multiple IPs can 
+       # result in the same sourceline
        key = str(a[i,0])+"_"+str(a[i,1])+"_"+sourceline
         
        # create a new node
@@ -119,6 +121,15 @@ class Graph(object):
                 edge_counter = self.edges[i][l][1]
                 e.set_label( edge_counter )
 
+   def get_reduced_dimensions(self, threshold):
+     dim = 0
+     self.keyToInt_reduced = {}
+     for i in self.edges.keys():
+       if self.tree[i][1] > threshold * self.total:
+         self.keyToInt_reduced[i] = dim
+         dim = dim + 1
+     print self.keyToInt_reduced, dim
+     return dim
 
    def create_adjacency_matrix(self, threshold=0):
       if len(self.edges.keys()) == 0:
@@ -126,16 +137,23 @@ class Graph(object):
         return False
      
       # create empty matrix
-      dim = len(self.tree.keys())
+      if threshold == 0:
+        dim = len(self.tree.keys())
+        index_lookup = self.keyToInt
+      else:
+        dim = self.get_reduced_dimensions(threshold)
+        index_lookup = self.keyToInt_reduced
+   
       self.adj_matrix = numpy.zeros((dim,dim))
       self.names = [0]*dim
+
       for i in self.edges.keys():
         if self.tree[i][1] > threshold * self.total:
-          x = self.keyToInt[i]
+          x = index_lookup[i]
           self.names[x] = i
           for l in self.edges[i]:
             try:
-              y = self.keyToInt[l]
+              y = index_lookup[l]
               if self.tree[l][1] > threshold * self.total:
                 self.adj_matrix[x,y] = self.tree[l][1]
             except:
@@ -161,8 +179,9 @@ class Graph(object):
        plt.yticks(x,x)
        ax1.set_xticklabels(self.names, rotation=90)
        ax1.set_yticklabels(self.names)
-       plt.rc('xtick', labelsize=8)
-       plt.rc('ytick', labelsize=8)
+       plt.tight_layout()
+       plt.rc('xtick', labelsize=5)
+       plt.rc('ytick', labelsize=5)
        plt.grid(True)
        plt.show()
 
