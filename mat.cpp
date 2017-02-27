@@ -280,7 +280,7 @@ VOID Trace(TRACE trace, VOID * val)
                IMG img = SEC_Img(RTN_Sec(rtn));
                if (IMG_Valid(img)){
                  //Instrument functions of interest e.g. main
-                      if (RTN_Name(rtn) == "_Z5func4PdS_S_" || RTN_Name(rtn) == "_Z5func3PPdS0_S0_") 
+                      if (RTN_Name(rtn) == "main")
                          InstrumentMemAccess(ins); 
                }
              }
