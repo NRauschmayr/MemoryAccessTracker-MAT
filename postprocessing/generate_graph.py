@@ -23,7 +23,7 @@ class Graph(object):
 
      # Read the input file
      isRead  = self.content[:,4]
-     a = numpy.vstack([self.content[:,5],self.content[:,8],self.content[:,0]]).T
+     a = numpy.vstack([self.content[:,5],self.content[:,6],self.content[:,0]]).T
      a = numpy.array(a, dtype=numpy.int32)
      self.total = a.shape[0]  
 
