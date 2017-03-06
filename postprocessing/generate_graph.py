@@ -23,7 +23,7 @@ class Graph(object):
 
      # Read the input file
      isRead  = self.content[:,4]
-     a = numpy.vstack([self.content[:,5],self.content[:,6],self.content[:,0]]).T
+     a = numpy.vstack([self.content[:,5],self.content[:,8],self.content[:,0]]).T
      a = numpy.array(a, dtype=numpy.int32)
      self.total = a.shape[0]  
 
@@ -38,8 +38,9 @@ class Graph(object):
      # Create pydot Graph and root node
      self.graph = pydot.Dot(graph_type='digraph')
      previous_n = pydot.Node("Root", style="filled", fillcolor="red")
-     previous_k = "Root"
-     self.tree = {previous_k: [previous_n, 1, 0]}
+     parent_k   = "Root"
+     grandparent_k = "RootParent"
+     self.tree = {parent_k: [previous_n, 1, 0]}
 
      toInt = 0 # counter to map keys to ints
      for i in range(0,a.shape[0]):
@@ -57,25 +58,35 @@ class Graph(object):
          self.keyToInt[key] = toInt
          toInt = toInt + 1
          node = pydot.Node(key)
-         self.tree[key] = [node, 1, isRead[i]] 
+         self.tree[key]  = [node, 1, isRead[i]] 
          self.graph.add_node(node)
          e = pydot.Edge(previous_n,node)
          self.graph.add_edge( e )
-         self.edges[key] = {previous_k:[e,1]}
-         previous_k = key
-         previous_n = node
+         self.edges[key] = {parent_k:{grandparent_k:[e,1]}, "Last": parent_k}
+         grandparent_k   = parent_k
+         parent_k        = key
+         previous_n      = node
 
        #increase counter
        else:
-         if (previous_k not in self.edges[key].keys()):
+         if (parent_k not in self.edges[key].keys()):
            e = pydot.Edge(previous_n, self.tree[key][0]) 
            self.graph.add_edge( e )
-           self.edges[key].update({previous_k:[e,0]})
-         edge_counter = self.edges[key][previous_k][1]
-         self.edges[key][previous_k][1] = edge_counter + 1
+           self.edges[key].update({parent_k:{grandparent_k: [e,0]}})
+
+         if grandparent_k not in self.edges[key][parent_k].keys():
+           k = self.edges[key][parent_k].keys()[0]
+           e = self.edges[key][parent_k][k][0]
+           self.edges[key][parent_k].update({grandparent_k: [e,0]})
+
+         edge_counter = self.edges[key][parent_k][grandparent_k][1]
+         self.edges[key][parent_k][grandparent_k][1] = edge_counter + 1
+         self.edges[key]["Last"] = parent_k
+         grandparent_k = self.edges[key]["Last"]
+
          previous_n, counter, access_type = self.tree[key]
-         previous_k = key
-         self.tree[previous_k] = [previous_n, counter + 1, access_type]
+         parent_k = key
+         self.tree[parent_k] = [previous_n, counter + 1, access_type]
 
      # mark the most visited nodes red
      for i in self.tree:
@@ -83,11 +94,16 @@ class Graph(object):
         node.set_label(i + " - " + str(counter))
         try:
           for l in self.edges[i].keys():
-            edge_counter = self.edges[i][l][1]
-            self.edges[i][l][0].set_label( edge_counter )
+            if l != "Last":
+              tmp = ""
+              for k in self.edges[i][l].keys():
+                if k != "Last":
+                  edge_counter = self.edges[i][l][k][1]
+                  tmp =  tmp + "\n" + str(edge_counter) + " " + str(k)
+              self.edges[i][l][k][0].set_label( tmp )
         except:
           pass
-        
+
         if counter > 0.001 * a.shape[0]:
           node.set_fontsize(24)
         if not access_type:
@@ -114,12 +130,16 @@ class Graph(object):
           if not access_type:
             node.set_style("filled, bold")
           self.graph.add_node(node)
-          for l in self.edges[i]:
-             if self.tree[l][1] > threshold * self.total:
-                e =  pydot.Edge(self.tree[l][0], self.tree[i][0])
-                self.graph.add_edge( e )
-                edge_counter = self.edges[i][l][1]
-                e.set_label( edge_counter )
+          for l in self.edges[i]: 
+            if l != "Last":
+              tmp = ""
+              for k in self.edges[i][l].keys():
+                if self.tree[l][1] > threshold * self.total:
+                  edge_counter = self.edges[i][l][k][1]
+                  tmp =  tmp + "\n" + str(edge_counter) + " " + str(k)
+              e =  pydot.Edge(self.tree[l][0], self.tree[i][0])
+              self.graph.add_edge( e )
+              e.set_label( tmp )
 
    def get_reduced_dimensions(self, threshold):
      dim = 0
