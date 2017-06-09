@@ -194,12 +194,15 @@ VOID realloc_after(ADDRINT addr){
 
 static int posix_memalign_size=0;
 static uintptr_t posix_memalign_addr=0;
+static void** tmp_src;
+
 VOID posix_memalign_before(ADDRINT src, size_t alignment, size_t size){
   posix_memalign_size=size;
-  posix_memalign_addr=src;
+  tmp_src = src;
 }
 
 VOID posix_memalign_after(int ret){
+   posix_memalign_addr = (ADDRINT) *tmp_src;
    if (ret == 0)
      splay_tree_insert(tree,(splay_tree_key) posix_memalign_addr,(splay_tree_value) posix_memalign_addr+posix_memalign_size);
 }
