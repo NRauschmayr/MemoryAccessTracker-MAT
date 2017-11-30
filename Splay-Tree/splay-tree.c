@@ -188,11 +188,11 @@ static uint64_t splay_tree_foreach_helper (splay_tree sp, splay_tree_node node,
   return splay_tree_foreach_helper (sp, node->right, fn, data);
 }
 
-static void * splay_tree_xmalloc_allocate (int size, void *data ATTRIBUTE_UNUSED){
+static void * splay_tree_xmalloc_allocate (int size, void *data ){//ATTRIBUTE_UNUSED){
   return (void *) malloc (size);
 }
 
-static void splay_tree_xmalloc_deallocate (void *object, void *data ATTRIBUTE_UNUSED){
+static void splay_tree_xmalloc_deallocate (void *object, void *data ){//ATTRIBUTE_UNUSED){
   free (object);
 }
 

@@ -34,7 +34,7 @@ Boston, MA 02110-1301, USA.  */
 
 extern "C" {
 #include <stdint.h>
-#include "ansidecl.h"
+//#include "ansidecl.h"
 #include <inttypes.h>
 
 typedef uint64_t splay_tree_key;

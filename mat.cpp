@@ -6,7 +6,6 @@
 
 #include "pin.H"
 #include "instlib.H"
-#include "portability.H"
 
 //define allocation functions
 #define MMAP 	"mmap"
@@ -48,8 +47,6 @@ BOOL SignalHandler1(THREADID, INT32, CONTEXT *, BOOL, const EXCEPTION_INFO *, vo
 }
 
 //SignalerHandler do disable instrumentation for memory accesses
-//We cannot disable instrumentation for allocation functions, otherwise we loose
-//important information
 BOOL SignalHandler2(THREADID, INT32, CONTEXT *, BOOL, const EXCEPTION_INFO *, void *){
   fprintf(traceFile, "0 0\n");
   std::cout << "Instrumenation disabled" << std::endl;
@@ -66,7 +63,7 @@ VOID Record(ADDRINT ip, ADDRINT ea, UINT32 size, BOOL type)
    auto it = ip_map.insert(std::make_pair(ip,1));
    if (it.second){
        //string_of_instructions[addr] = INS_Disassemble(addr);
-       std::map<ADDRINT,std::string>::const_iterator it = sourcelines.find(ip);
+       //std::map<ADDRINT,std::string>::const_iterator it = sourcelines.find(ip);
 
       //Get sourceline of the corresponding ip
       std::string filename;
@@ -86,13 +83,12 @@ VOID Record(ADDRINT ip, ADDRINT ea, UINT32 size, BOOL type)
      tmp = ea - n->key;
      fprintf(traceFile, "%lu %lu %lu %lu %d\n", (long unsigned) ip, (long unsigned) ea, tmp, n->key, type);
     } 
-   else //if we cannot find the corresponding allocation to which the memory access belongs
+   else //if corresponding allocation cannot be found
       fprintf(traceFile, "%lu %lu -1 -1 %d\n", (long unsigned) ip, (long unsigned) ea, type);
 }
 
 //Instrument Load and Stores and obtain information about
 //ip, address of memory access and size of load (1)/store (0)  
-//We ignore memory accesses to the stack for the time being
 BOOL InstrumentMemAccess (INS ins){
 
  UINT32 memOperands = INS_MemoryOperandCount(ins);
@@ -119,7 +115,7 @@ BOOL InstrumentMemAccess (INS ins){
   return (TRUE);
 }
 
-//Wrapper for allocation functions: We need to obtain function entry arguments and
+//Wrapper for allocation functions: obtain function entry arguments and
 //function exit arguments for malloc, realloc, calloc, brk, sbrk, mmap, munmap,
 //free, posix_memalign, memalign
 static size_t malloc_size = 0;
@@ -194,15 +190,13 @@ VOID realloc_after(ADDRINT addr){
 
 static int posix_memalign_size=0;
 static uintptr_t posix_memalign_addr=0;
-static void** tmp_src;
 
 VOID posix_memalign_before(ADDRINT src, size_t alignment, size_t size){
   posix_memalign_size=size;
-  tmp_src = src;
+  posix_memalign_addr = src;
 }
 
 VOID posix_memalign_after(int ret){
-   posix_memalign_addr = (ADDRINT) *tmp_src;
    if (ret == 0)
      splay_tree_insert(tree,(splay_tree_key) posix_memalign_addr,(splay_tree_value) posix_memalign_addr+posix_memalign_size);
 }
@@ -244,7 +238,6 @@ VOID Trace(TRACE trace, VOID * val)
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)){  
         //Iterate over instructions within basic block
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-           //Enter Instrumentation if enabled       
            if (EnableInstrumentation){
              RTN rtn = TRACE_Rtn(trace);
              if (RTN_Valid(rtn) ){

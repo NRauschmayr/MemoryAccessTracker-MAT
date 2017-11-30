@@ -4,7 +4,6 @@ import sys
 import matplotlib.pyplot as plt
 from matplotlib import offsetbox
 import matplotlib.colors as colors
-from sklearn import manifold, datasets, decomposition, ensemble
 
 class Graph(object):
   
@@ -180,9 +179,6 @@ class Graph(object):
               pass
 
    def plot_adjacency_matrix(self):
-       if self.adj_matrix == None:
-         print "Run first create_adjacency_matrix()"
-         return False
 
        # create new color map
        oldCmap = plt.get_cmap('hot')
