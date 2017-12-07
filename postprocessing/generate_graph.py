@@ -11,102 +11,206 @@ class Graph(object):
 
       self.filename = filename
       # dictionaries to keep track of edges, nodes and their counters
-      self.tree = {}
-      self.edges = {}
-      self.keyToInt = {}      
-      self.adj_matrix = None
-      self.graph = None
-      self.content = self.prepare_input()
+      self.tree        = {}
+      self.edges       = {}
+      self.graph       = None
+      # read output of PIN tool
+      data             = self.prepare_input() # postprocess output file. Compute strides and assign blockIDs.
+      self.ips	       = data[:,0]
+      self.blockIds    = data[:,7]
+      self.strides     = data[:,8]
+      self.objectSizes = data[:,6]
+      self.isRead      = data[:,4]
+      self.total       = data.shape[0]
+      self.sourcelines = {}
+
+      # Read sourcelines for ip
+      f = open("sourcelines.txt")
+      for i in f.readlines():
+        tmp  = i.split()
+        line = tmp[1].split("/")[-1]
+        self.sourcelines[int(tmp[0])] = line.replace(":","-")
 
    def create_graph(self):
-
-     # Read the input file
-     isRead  = self.content[:,4]
-     a = numpy.vstack([self.content[:,5],self.content[:,6],self.content[:,0]]).T
-     a = numpy.array(a, dtype=numpy.int32)
-     self.total = a.shape[0]  
-
-     sourcelines = {}
-     # Read sourcelines for ip
-     f = open("sourcelines.txt")
-     for i in f.readlines():
-       tmp = i.split()
-       f   = tmp[1].split("/")[-1]
-       sourcelines[int(tmp[0])] = f.replace(":","-")    
-
+     
      # Create pydot Graph and root node
-     self.graph = pydot.Dot(graph_type='digraph')
-     previous_n = pydot.Node("Root", style="filled", fillcolor="red")
-     parent_k   = "Root"
-     grandparent_k = "RootParent"
-     self.tree = {parent_k: [previous_n, 1, 0]}
+     self.graph      = pydot.Dot(graph_type='digraph')
+     previous_node   = pydot.Node("Root", style="filled", fillcolor="red")
+     parent_key      = "Root"
+     grandparent_key = "RootParent"
+     self.tree = {parent_key: [previous_node, 1, 0]}
 
-     toInt = 0 # counter to map keys to ints
-     for i in range(0,a.shape[0]):
+     # Lookup sourcecode line
+     for ip, blockId, stride, objectSize, isRead  in zip( self.ips, self.blockIds, self.strides, self.objectSizes, self.isRead ):
        sourceline = " "
        try:
-	  sourceline = sourcelines[a[i,2]]
+	  sourceline = self.sourcelines[ip]
        except:
           pass
-       # We hash on sourceline not IP. Multiple IPs can 
-       # result in the same sourceline
-       key = str(a[i,0])+"_"+str(a[i,1])+"_"+sourceline
-        
-       # create a new node
+
+       # key for each node in the graph is blockID, stride, size and sourceline 
+       key = (blockId, stride, objectSize) #, sourceline)
+       # check if node already exists        
        if key not in self.tree:
-         self.keyToInt[key] = toInt
-         toInt = toInt + 1
-         node = pydot.Node(key)
-         self.tree[key]  = [node, 1, isRead[i]] 
+
+         # create a new node and edge
+         node = pydot.Node(str(blockId) + "_" + str(stride) + "_" + str(objectSize) + "_" + str(sourceline))
          self.graph.add_node(node)
-         e = pydot.Edge(previous_n,node)
-         self.graph.add_edge( e )
-         self.edges[key] = {parent_k:{grandparent_k:[e,1]}, "Last": parent_k}
-         grandparent_k   = parent_k
-         parent_k        = key
-         previous_n      = node
+         new_edge = pydot.Edge(previous_node, node)
+         self.graph.add_edge( new_edge )
 
-       #increase counter
+         # add new node with node counter 1 to dictionary          
+         self.tree[key]  = [node, 1, isRead] 
+
+         # add new edge with edge counter 1 to dictionary
+         self.edges[key] = {parent_key: {grandparent_key: [new_edge, 1] } , "Last": parent_key}
+
+         # remember keys for next iteration
+         grandparent_key    = parent_key
+         parent_key         = key
+         previous_node      = node
+
+       #key already exist in Graph, so increase counter
        else:
-         if (parent_k not in self.edges[key].keys()):
-           e = pydot.Edge(previous_n, self.tree[key][0]) 
-           self.graph.add_edge( e )
-           self.edges[key].update({parent_k:{grandparent_k: [e,0]}})
 
-         if grandparent_k not in self.edges[key][parent_k].keys():
-           k = self.edges[key][parent_k].keys()[0]
-           e = self.edges[key][parent_k][k][0]
-           self.edges[key][parent_k].update({grandparent_k: [e,0]})
+         # edge to parent does not exist
+         if (parent_key not in self.edges[key].keys()):
+           new_edge = pydot.Edge(previous_node, self.tree[key][0]) 
+           self.graph.add_edge( new_edge )
+           self.edges[key].update({parent_key: { grandparent_key: [new_edge, 0] }})
 
-         edge_counter = self.edges[key][parent_k][grandparent_k][1]
-         self.edges[key][parent_k][grandparent_k][1] = edge_counter + 1
-         self.edges[key]["Last"] = parent_k
-         grandparent_k = self.edges[key]["Last"]
+         # edge to grandparent does not exist in dictionary
+         if grandparent_key not in self.edges[key][parent_key].keys():
+           k = self.edges[key][parent_key].keys()[0]
+           new_edge = self.edges[key][parent_key][k][0]
+           self.edges[key][parent_key].update({grandparent_key: [new_edge,0]})
 
-         previous_n, counter, access_type = self.tree[key]
-         parent_k = key
-         self.tree[parent_k] = [previous_n, counter + 1, access_type]
+         # increase edge_counter and update dictionaries 
+         edge_counter = self.edges[key][parent_key][grandparent_key][1]
+         self.edges[key][parent_key][grandparent_key][1] = edge_counter + 1
+         self.edges[key]["Last"] = parent_key
+         grandparent_key = self.edges[key]["Last"]
 
-     # mark the most visited nodes red
-     for i in self.tree:
-        node, counter, access_type = self.tree[i] 
-        node.set_label(i + " - " + str(counter))
+         # increase node counter
+         previous_node, counter, isRead = self.tree[key]
+         parent_key = key
+         self.tree[parent_key] = [previous_node, counter + 1, isRead]
+
+     # set edge labels and mark most visited nodes (larger size)
+     for key in self.tree:
+        node, counter, isRead = self.tree[key]
+        node_label = str(key[0]) + "_" + str(key[1]) + "_" + str(key[2]) + " - " + str(counter)  
+        node.set_label( node_label )
         try:
-          for l in self.edges[i].keys():
-            if l != "Last":
-              tmp = ""
-              for k in self.edges[i][l].keys():
-                if k != "Last":
-                  edge_counter = self.edges[i][l][k][1]
-                  tmp =  tmp + "\n" + str(edge_counter) + " " + str(k)
-              self.edges[i][l][k][0].set_label( tmp )
+          for parent_key in self.edges[key].keys():
+            if parent_key != "Last":
+              edge_label = ""
+              for grandparent_key in self.edges[key][parent].keys():
+                if grandparent_key != "Last":
+                  edge_counter = self.edges[key][parent_key][grandparent_key][1]
+                  edge_label =  edge_label + "\n" + str(edge_counter) + " " + str(grandparent_key)
+              self.edges[key][parent_key][grandparent_key][0].set_label( edge_label )
         except:
           pass
-
-        if counter > 0.001 * a.shape[0]:
+        
+        if counter > 0.001 * self.total:
           node.set_fontsize(24)
-        if not access_type:
+
+        #mark write accesses 
+        if not isRead:
             node.set_style("filled, bold")          
+
+   def get_ngrams(self):
+
+     ngrams = {}
+     nodeList = []
+     isReadList = []
+
+     grandparent = "RootParent"
+     parent = "Root"
+
+     for i in range(0, self.total):
+
+       key = ( self.blockIds[i], self.strides[i], self.objectSizes[i] ) #self.sourcelines[self.ips[i]] )
+       
+       for current in self.tree.keys():
+         if key[0] == current[0] and key[1] == current[1]  and key[2] == current[2] and current in self.edges_reduced.keys():
+           if parent in self.edges_reduced[current] and parent != "Root":
+             if grandparent in self.edges_reduced[current][parent]:
+               if len(nodeList) == 0:
+                 nodeList.append((parent[0], parent[1]))
+                 isReadList.append(self.isRead[i-1])
+               nodeList.append(key)
+               isReadList.append(self.isRead[i])
+               
+               # if current node and it's parent node iis already in nodeList, then one ngram is found
+                 
+               if len(nodeList) > 2 and key[0] == nodeList[1][0] and key[1] == nodeList[1][1] and key[2] == nodeList[1][2] and parent[0] == nodeList[0][0] and parent[1] == nodeList[0][1]:
+                 # create ngram_key  
+                 parent_tup = (parent[0], parent[1], parent[2])  
+                 ngram_key = parent_tup + key
+                 # check if an ngram with this key already exists
+                 if ngram_key in ngrams:
+
+                   # Ngrams can start with the same blockIDs, strides. As such an ngram_key in the ngrams-dict can have mutliple ngrams
+                   append = True
+                   for counter in range(0, len( ngrams[ngram_key][0] )):
+                       # check if this specific ngram has already been seen: if yes increase counter by one. if not add a new list to the existing key in ngrams_dict 
+                      if nodeList == ngrams[ngram_key][0][counter]:
+                        append = False
+                        ngrams[ngram_key][2][counter] = ngrams[ngram_key][2][counter] + 1
+                        break
+                   # ngram_key already exist, but ngram itself does not, so extend the list  
+                   if append:
+                      #ngrams contains following list [nodeList (blockIDs, strides, objectSizes)] [number of occurences] [accesstypes] 
+                      ngrams[ngram_key][0].append(nodeList)
+                      ngrams[ngram_key][1].append(isReadList)
+                      ngrams[ngram_key][2].append(1)# how often did the ngram appear
+                 # this ngram has not been so far, so store it in the ngrams-dict with counter 1
+                 else:
+                   ngrams[ngram_key] = [[nodeList],[isReadList], [1]]
+
+                 nodeList = [parent_tup, key]
+                 isReadList = [self.isRead[i-1], self.isRead[i]]
+                 ips = [self.ips[i-1], self.ips[i]]
+                 break
+
+             #reset lists
+             else:
+               nodeList = [] 
+               isReadList = []
+           break
+       grandparent = parent
+       parent = current
+
+     # if the end of the memory graph is reached and nodeList is not empty
+     if len(nodeList) > 0 and len(nodeList) > 0.5*self.total:
+       if nodeList[0] in ngrams: 
+        ngrams[nodeList[0]+nodeList[1]][0].append(nodeList)
+        ngrams[nodeList[0]+nodeList[1]][1].append(isReadList)        
+        ngrams[nodeList[0]+nodeList[1]][2].append(1)
+       else:
+        ngrams[nodeList[0]+nodeList[1]] =[[nodeList],[isReadList], [1]]
+
+     occurences = numpy.array([])
+
+     counter = 0    
+     for key in ngrams:
+       print ngrams[key]
+       for entry in range(0, len(ngrams[key][2])):
+         # compute how often the ngram appears
+         ratio = ngrams[key][2][entry]/float(self.total)
+         print ratio, ngrams[key][2][entry]
+         if ratio > 0.02:
+         
+           f = open(sys.argv[1] + ".ngram" + str(counter), "w")
+           for length in range(0, len(ngrams[key][0][entry])):
+             f.write("%s %s %s\n" %(ngrams[key][0][entry][length][0], ngrams[key][0][entry][length][1], ngrams[key][1][entry][length]))
+           occurences = numpy.append(occurences, ngrams[key][2][entry])
+           f.close()  
+           counter = counter + 1
+     # store 
+     numpy.savetxt(sys.argv[1]+".n", occurences, fmt="%lf")
 
    def plot_graph(self, outfilename):
       if self.graph == None:
@@ -115,129 +219,89 @@ class Graph(object):
       self.graph.write_png(outfilename+".png")
 
    def reduce_graph(self, threshold=0):
+
       if len(self.edges.keys()) == 0:
         print "Run first create_graph()"
         return False
 
+      self.edges_reduced = {}
       self.graph = pydot.Dot(graph_type='digraph')
-      for i in self.edges.keys():
-        x = self.keyToInt[i]
-        if self.tree[i][1] > threshold * self.total:
-          node = pydot.Node(i)
-          node.set_label(i + " - " + str(self.tree[i][1]))
-          access_type = self.tree[i][2]
-          if not access_type:
-            node.set_style("filled, bold")
-          self.graph.add_node(node)
-          for l in self.edges[i]: 
-            if l != "Last":
-              tmp = ""
-              for k in self.edges[i][l].keys():
-                if self.tree[l][1] > threshold * self.total:
-                  edge_counter = self.edges[i][l][k][1]
-                  tmp =  tmp + "\n" + str(edge_counter) + " " + str(k)
-              e =  pydot.Edge(self.tree[l][0], self.tree[i][0])
-              self.graph.add_edge( e )
-              e.set_label( tmp )
 
-   def get_reduced_dimensions(self, threshold):
-     dim = 0
-     self.keyToInt_reduced = {}
-     for i in self.edges.keys():
-       if self.tree[i][1] > threshold * self.total:
-         self.keyToInt_reduced[i] = dim
-         dim = dim + 1
-     print self.keyToInt_reduced, dim
-     return dim
+      # iterate through nodes and edges and filter by value
+      for key in self.edges.keys():
 
-   def create_adjacency_matrix(self, threshold=0):
-      if len(self.edges.keys()) == 0:
-        print "Run first create_graph()"
-        return False
-     
-      # create empty matrix
-      if threshold == 0:
-        dim = len(self.tree.keys())
-        index_lookup = self.keyToInt
-      else:
-        dim = self.get_reduced_dimensions(threshold)
-        index_lookup = self.keyToInt_reduced
-   
-      self.adj_matrix = numpy.zeros((dim,dim))
-      self.names = [0]*dim
+        # check for most visited nodes
+        if self.tree[key][1] > threshold * self.total:
 
-      for i in self.edges.keys():
-        if self.tree[i][1] > threshold * self.total:
-          x = index_lookup[i]
-          self.names[x] = i
-          for l in self.edges[i]:
-            try:
-              y = index_lookup[l]
-              if self.tree[l][1] > threshold * self.total:
-                self.adj_matrix[x,y] = self.tree[l][1]
-            except:
-              pass
+          # iterate over edges and connect most visited nodes
+          for parent_key in self.edges[key]:
 
-   def plot_adjacency_matrix(self):
+            if parent_key != "Last" and self.tree[parent_key][1] > threshold * self.total:
 
-       # create new color map
-       oldCmap = plt.get_cmap('hot')
-       minval=0
-       maxval=0.7
-       newCmap = colors.LinearSegmentedColormap.from_list( 'trunc({n},{a:.2f},{b:.2f})'.format(n=oldCmap.name, a=minval, b=maxval), oldCmap(numpy.linspace(minval, maxval, 100)))
+              edge_label = ""
 
-       fig, ax1  = plt.subplots(1,1)
-       self.adj_matrix = self.adj_matrix.T
-       masked=numpy.ma.masked_where(self.adj_matrix == 0, self.adj_matrix)
-       plt.imshow(masked,cmap=newCmap, interpolation='nearest')
-       x = range(0, len(self.names))
-       plt.xticks(x,x)
-       plt.yticks(x,x)
-       ax1.set_xticklabels(self.names, rotation=90)
-       ax1.set_yticklabels(self.names)
-       plt.tight_layout()
-       plt.rc('xtick', labelsize=5)
-       plt.rc('ytick', labelsize=5)
-       plt.grid(True)
-       plt.show()
+              for grandparent_key in self.edges[key][parent_key].keys():
 
-   def get_adjacency_matrix(self):
-      return self.adj_matrix
- 
-   def get_node_number(self):
-      return len(self.tree.keys())
-  
+                n = self.edges[key][parent_key][grandparent_key]
+
+                if self.tree[parent_key][1] > threshold * self.total and self.edges[key][parent_key][grandparent_key][1] > threshold * self.total:
+                  if key not in self.edges_reduced:
+                    self.edges_reduced[key] = { parent_key: {grandparent_key:n} }
+                  if parent_key not in self.edges_reduced[key]:
+                    self.edges_reduced[key].update({ parent_key: {grandparent_key:n } })
+                  if grandparent_key not in self.edges_reduced[key][parent_key]:
+                     self.edges_reduced[key][parent_key].update({ parent_key:n })
+                  else:
+                     self.edges_reduced[key][parent_key][grandparent_key] = n
+                  edge_counter = self.edges[key][parent_key][grandparent_key][1]
+                  edge_label =  edge_label + "\n" + str(edge_counter) + " " + str(grandparent_key[0]) + "_" + str(grandparent_key[1]) + "_" + str(grandparent_key[2])
+
+              if edge_label != "":
+                new_edge =  pydot.Edge(self.tree[parent_key][0], self.tree[key][0])
+                self.graph.add_node(self.tree[parent_key][0])
+                self.graph.add_node(self.tree[key][0])
+                self.graph.add_edge( new_edge )
+                new_edge.set_label( edge_label) 
+
+
    def prepare_input(self):
-      data                 = numpy.loadtxt(self.filename)
-      if data.shape[1] < 7:
-        memory_block_ids     = numpy.zeros(data.shape[0])
-        delta_offsets        = numpy.zeros(data.shape[0])
-        unique_memory_blocks = numpy.unique(data[:,3])
+
+      data = numpy.loadtxt(self.filename, dtype=numpy.int)
+
+      if data.shape[1] < 8:
+        block_ids     = numpy.zeros(data.shape[0])
+        stride        = numpy.zeros(data.shape[0])
+        unique_blocks = numpy.unique(data[:,3])
 
         counter = 0
 
         #iterate over unique memory blocks
-        for i in unique_memory_blocks:
+        for i in unique_blocks:
 
           #Get the entries that access the same memory block  
           inds = numpy.where(data[:,3] == i)
+
           #assign each memory block a specific ID
-          memory_block_ids[inds] = counter
+          block_ids[inds] = counter
 
           #compute the delta offsets
-          n = len(inds[0])
-          z = numpy.zeros(n)
+          n  = len(inds[0])
+          z  = numpy.zeros(n)
           t1 = data[inds,2]
           t2 = data[inds,2]
           z[0:n-1] = t2[0,1:n]-t1[0,0:n-1]
-          delta_offsets[inds] =  z
+          # reset last value
+          z[n-1] = z[n-2]
+          stride[inds] =  z
           counter = counter + 1
 
-        delta_offsets.shape = (delta_offsets.shape[0],1)
-        memory_block_ids.shape = (memory_block_ids.shape[0], 1)
-        output = numpy.hstack([data[:,0:5], memory_block_ids , delta_offsets])
-        numpy.savetxt(self.filename, output, fmt="%d %d %d %d %d %d %d")
+        stride.shape = (stride.shape[0],1)
+        block_ids.shape = (block_ids.shape[0], 1)
+        output = numpy.hstack([data, block_ids , stride])
+        numpy.savetxt(self.filename, output, fmt="%d %d %d %d %d %d %d %d %d")
+
         return output
+
       else:
         return data 
    
@@ -247,5 +311,4 @@ if __name__ == "__main__":
    g.plot_graph(sys.argv[1])
    g.reduce_graph(threshold=0.001)
    g.plot_graph(sys.argv[1]+"_reduced")
-   g.create_adjacency_matrix(threshold=0.001)
-   g.plot_adjacency_matrix()
+   g.get_ngrams()
