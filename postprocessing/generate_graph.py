@@ -47,14 +47,14 @@ class Graph(object):
 	  sourceline = self.sourcelines[ip]
        except:
           pass
-
        # key for each node in the graph is blockID, stride, size and sourceline 
-       key = (blockId, stride, objectSize) #, sourceline)
+       key = (blockId, stride, objectSize) #, sourceline) 
+
        # check if node already exists        
        if key not in self.tree:
 
          # create a new node and edge
-         node = pydot.Node(str(blockId) + "_" + str(stride) + "_" + str(objectSize) + "_" + str(sourceline))
+         node = pydot.Node(str(blockId) + "_" + str(stride) + "_" + str(objectSize) ) #+ "_" + str(sourceline)) 
          self.graph.add_node(node)
          new_edge = pydot.Edge(previous_node, node)
          self.graph.add_edge( new_edge )
@@ -99,7 +99,7 @@ class Graph(object):
      # set edge labels and mark most visited nodes (larger size)
      for key in self.tree:
         node, counter, isRead = self.tree[key]
-        node_label = str(key[0]) + "_" + str(key[1]) + "_" + str(key[2]) + " - " + str(counter)  
+        node_label = str(key[0]) + "_" + str(key[1]) + "_" + str(key[2]) + " - " + str(counter) #+ "_" + str(key[3]) + " - " + str(counter)  
         node.set_label( node_label )
         try:
           for parent_key in self.edges[key].keys():
@@ -129,80 +129,76 @@ class Graph(object):
      grandparent = "RootParent"
      parent = "Root"
 
-     for i in range(0, self.total):
+     for i in range( 0, self.total ):
 
-       key = ( self.blockIds[i], self.strides[i], self.objectSizes[i] ) #self.sourcelines[self.ips[i]] )
-       
+       key = ( self.blockIds[i] , self.strides[i] , self.objectSizes[i] , self.sourcelines[self.ips[i]] )
        for current in self.tree.keys():
-         if key[0] == current[0] and key[1] == current[1]  and key[2] == current[2] and current in self.edges_reduced.keys():
-           if parent in self.edges_reduced[current] and parent != "Root":
-             if grandparent in self.edges_reduced[current][parent]:
-               if len(nodeList) == 0:
-                 nodeList.append((parent[0], parent[1]))
-                 isReadList.append(self.isRead[i-1])
-               nodeList.append(key)
-               isReadList.append(self.isRead[i])
-               
-               # if current node and it's parent node iis already in nodeList, then one ngram is found
-                 
+         
+         if key[0] == current[0] and key[1] == current[1]  and key[2] == current[2]  and current in self.edges_reduced.keys(): #and key[3] == current[3] 
+           if parent in self.edges_reduced[ current ] and parent != "Root":
+             if grandparent in self.edges_reduced[ current ][ parent ]:
+               if len( nodeList ) == 0:
+                 nodeList.append(( parent[0], parent[1], parent[2] )) #, parent[3] ))
+                 isReadList.append( self.isRead[i-1] )
+               nodeList.append( key )
+               isReadList.append( self.isRead[i] )
+
+               # if current node and it's parent node is already in nodeList, then one ngram is found
                if len(nodeList) > 2 and key[0] == nodeList[1][0] and key[1] == nodeList[1][1] and key[2] == nodeList[1][2] and parent[0] == nodeList[0][0] and parent[1] == nodeList[0][1]:
                  # create ngram_key  
-                 parent_tup = (parent[0], parent[1], parent[2])  
+                 parent_tup = ( parent[0] , parent[1] , parent[2] ) #, parent[3] )  
                  ngram_key = parent_tup + key
                  # check if an ngram with this key already exists
                  if ngram_key in ngrams:
 
                    # Ngrams can start with the same blockIDs, strides. As such an ngram_key in the ngrams-dict can have mutliple ngrams
                    append = True
-                   for counter in range(0, len( ngrams[ngram_key][0] )):
+                   for counter in range(0, len( ngrams[ ngram_key ][ 0 ] )):
                        # check if this specific ngram has already been seen: if yes increase counter by one. if not add a new list to the existing key in ngrams_dict 
-                      if nodeList == ngrams[ngram_key][0][counter]:
+                      if nodeList == ngrams[ ngram_key ][ 0 ][ counter ]:
                         append = False
-                        ngrams[ngram_key][2][counter] = ngrams[ngram_key][2][counter] + 1
+                        ngrams[ ngram_key ][ 2 ][ counter ] = ngrams[ ngram_key ][ 2 ][ counter ] + 1
                         break
                    # ngram_key already exist, but ngram itself does not, so extend the list  
                    if append:
                       #ngrams contains following list [nodeList (blockIDs, strides, objectSizes)] [number of occurences] [accesstypes] 
-                      ngrams[ngram_key][0].append(nodeList)
-                      ngrams[ngram_key][1].append(isReadList)
-                      ngrams[ngram_key][2].append(1)# how often did the ngram appear
+                      ngrams[ ngram_key ][0].append( nodeList )
+                      ngrams[ ngram_key ][1].append( isReadList )
+                      ngrams[ ngram_key ][2].append( 1 )# how often did the ngram appear
                  # this ngram has not been so far, so store it in the ngrams-dict with counter 1
                  else:
-                   ngrams[ngram_key] = [[nodeList],[isReadList], [1]]
+                   ngrams[ngram_key] = [ [nodeList] , [isReadList] , [1] ]
 
-                 nodeList = [parent_tup, key]
-                 isReadList = [self.isRead[i-1], self.isRead[i]]
-                 ips = [self.ips[i-1], self.ips[i]]
+                 nodeList   = [ parent_tup, key ]
+                 isReadList = [ self.isRead[i-1], self.isRead[i] ]
+                 ips        = [ self.ips[i-1], self.ips[i] ]
                  break
 
-             #reset lists
-             else:
-               nodeList = [] 
+           #reset lists
+           else:
+               nodeList   = [] 
                isReadList = []
            break
        grandparent = parent
        parent = current
 
      # if the end of the memory graph is reached and nodeList is not empty
-     if len(nodeList) > 0 and len(nodeList) > 0.5*self.total:
+     if len( nodeList ) > 0 and len( nodeList ) > 0.5 * self.total:
        if nodeList[0] in ngrams: 
-        ngrams[nodeList[0]+nodeList[1]][0].append(nodeList)
-        ngrams[nodeList[0]+nodeList[1]][1].append(isReadList)        
-        ngrams[nodeList[0]+nodeList[1]][2].append(1)
+        ngrams[ nodeList[0] + nodeList[1] ][0].append( nodeList )
+        ngrams[ nodeList[0] + nodeList[1] ][1].append( isReadList )        
+        ngrams[ nodeList[0] + nodeList[1] ][2].append( 1 )
        else:
-        ngrams[nodeList[0]+nodeList[1]] =[[nodeList],[isReadList], [1]]
+        ngrams[ nodeList[0] + nodeList[1] ] = [ [nodeList] , [isReadList] , [1] ]
 
      occurences = numpy.array([])
 
      counter = 0    
      for key in ngrams:
-       print ngrams[key]
        for entry in range(0, len(ngrams[key][2])):
-         # compute how often the ngram appears
+         # compute how often the ngram appears and only write out the ones which appear relativel often
          ratio = ngrams[key][2][entry]/float(self.total)
-         print ratio, ngrams[key][2][entry]
-         if ratio > 0.02:
-         
+         if ratio > 0.01:
            f = open(sys.argv[1] + ".ngram" + str(counter), "w")
            for length in range(0, len(ngrams[key][0][entry])):
              f.write("%s %s %s\n" %(ngrams[key][0][entry][length][0], ngrams[key][0][entry][length][1], ngrams[key][1][entry][length]))
@@ -246,11 +242,11 @@ class Graph(object):
 
                 if self.tree[parent_key][1] > threshold * self.total and self.edges[key][parent_key][grandparent_key][1] > threshold * self.total:
                   if key not in self.edges_reduced:
-                    self.edges_reduced[key] = { parent_key: {grandparent_key:n} }
+                    self.edges_reduced[key] = { parent_key: { grandparent_key: n } }
                   if parent_key not in self.edges_reduced[key]:
-                    self.edges_reduced[key].update({ parent_key: {grandparent_key:n } })
+                    self.edges_reduced[key].update({ parent_key: { grandparent_key: n } })
                   if grandparent_key not in self.edges_reduced[key][parent_key]:
-                     self.edges_reduced[key][parent_key].update({ parent_key:n })
+                     self.edges_reduced[key][parent_key].update({ grandparent_key: n })
                   else:
                      self.edges_reduced[key][parent_key][grandparent_key] = n
                   edge_counter = self.edges[key][parent_key][grandparent_key][1]
@@ -261,12 +257,12 @@ class Graph(object):
                 self.graph.add_node(self.tree[parent_key][0])
                 self.graph.add_node(self.tree[key][0])
                 self.graph.add_edge( new_edge )
-                new_edge.set_label( edge_label) 
+                new_edge.set_label( edge_label ) 
 
 
    def prepare_input(self):
 
-      data = numpy.loadtxt(self.filename, dtype=numpy.int)
+      data = numpy.loadtxt(self.filename, dtype=numpy.int64)
 
       if data.shape[1] < 8:
         block_ids     = numpy.zeros(data.shape[0])
@@ -297,13 +293,10 @@ class Graph(object):
 
         stride.shape = (stride.shape[0],1)
         block_ids.shape = (block_ids.shape[0], 1)
-        output = numpy.hstack([data, block_ids , stride])
-        numpy.savetxt(self.filename, output, fmt="%d %d %d %d %d %d %d %d %d")
+        data = numpy.hstack([data, block_ids , stride])
+        numpy.savetxt(self.filename, data, fmt="%d %d %d %d %d %d %d %d %d")
 
-        return output
-
-      else:
-        return data 
+      return data 
    
 if __name__ == "__main__":
    g = Graph(sys.argv[1])
