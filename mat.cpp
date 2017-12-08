@@ -81,10 +81,11 @@ VOID Record(ADDRINT ip, ADDRINT ea, UINT32 size, BOOL type)
 
    if( n != 0){
      tmp = ea - n->key;
-     fprintf(traceFile, "%lu %lu %lu %lu %d\n", (long unsigned) ip, (long unsigned) ea, tmp, n->key, type);
+     fprintf(traceFile, "%lu %lu %lu %lu %d %d %lu\n", (long unsigned) ip, (long unsigned) ea, tmp, n->key, type, size, n->value - n->key);
+
     } 
-   else //if corresponding allocation cannot be found
-      fprintf(traceFile, "%lu %lu -1 -1 %d\n", (long unsigned) ip, (long unsigned) ea, type);
+   //else //if corresponding allocation cannot be found
+   //   fprintf(traceFile, "%lu %lu -1 -1 %d\n", (long unsigned) ip, (long unsigned) ea, type);
 }
 
 //Instrument Load and Stores and obtain information about
