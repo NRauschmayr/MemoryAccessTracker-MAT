@@ -35,7 +35,8 @@ class Graph(object):
      
      # Create pydot Graph and root node
      self.graph      = pydot.Dot(graph_type='digraph')
-     previous_node   = pydot.Node("Root", style="filled", fillcolor="red")
+     previous_node   = pydot.Node("Root")
+
      parent_key      = "Root"
      grandparent_key = "RootParent"
      self.tree = {parent_key: [previous_node, 1, 0]}
@@ -99,8 +100,9 @@ class Graph(object):
      # set edge labels and mark most visited nodes (larger size)
      for key in self.tree:
         node, counter, isRead = self.tree[key]
-        node_label = str(key[0]) + "_" + str(key[1]) + "_" + str(key[2]) + " - " + str(counter) #+ "_" + str(key[3]) + " - " + str(counter)  
+        node_label = node.get_name() + " - " + str(counter) 
         node.set_label( node_label )
+
         try:
           for parent_key in self.edges[key].keys():
             if parent_key != "Last":
