@@ -39,9 +39,10 @@ else :
 ```
 An example graph: 
 <p>
-<img src="https://user-images.githubusercontent.com/12165606/34743029-94b8a898-f588-11e7-968a-8736f44598fc.png", width="800" height="600" />
+<img src="https://user-images.githubusercontent.com/12165606/34743029-94b8a898-f588-11e7-968a-8736f44598fc.png", width="800" height="800" />
  </p>
- The nodes are read the following way: **18 40 356352 runARawLoops.cxx-524 - 44201** means that Buffer with ID 18 was accessed with stride 40. The size of the buffer is 356352 Bytes. The access was made in file runARawLoops.cxx at line 524. This memory access was made 44201 times and it was always followed by an access with the notation **18 -32 356352 runARawLoops.cxx-524** Gray nodes indicate write access, white nodes indicate read accesses. Currently noces carry some more information such as the object size and sourcecodeline, since this makes the graph more readable. However, for later processings this information is skipped.
+ 
+The nodes are read the following way: **18 40 356352 runARawLoops.cxx-524 - 44201** means that Buffer with ID 18 was accessed with stride 40. The size of the buffer is 356352 Bytes. The access was made in file runARawLoops.cxx at line 524. This memory access was made 44201 times and it was always followed by an access with the notation **18 -32 356352 runARawLoops.cxx-524** Gray nodes indicate write access, white nodes indicate read accesses. Currently noces carry some more information such as the object size and sourcecodeline, since this makes the graph more readable. However, for later processings this information is skipped.
  
  
 Memory graphs allow to tremendously reduce the size of memory traces. Comparing memory traces from different workloads becomes then a graph similarity problem and can be solved with N-Gram Mining and Levenhstein distance. 
