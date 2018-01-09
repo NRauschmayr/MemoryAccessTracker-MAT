@@ -1,5 +1,5 @@
 # MemoryAccessTracker-MAT-
-The aim of this PIN tool is to track memory accesses and to compute the offsets between the accessed addresses and the start of the corresponding memory blocks and to derive a memory graph from it. 
+The aim of this PIN tool is to track memory accesses, to compute offsets between the accessed addresses and the start of the corresponding memory blocks and to derive a memory graph from it. 
 	
 How to install:
    - Download and install PIN
